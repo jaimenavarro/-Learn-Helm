@@ -1,0 +1,406 @@
+COMPUTED VALUES:
+affinity: {}
+allowEmptyPassword: true
+allowOverrideNone: false
+args: []
+autoscaling:
+  enabled: false
+  maxReplicas: 11
+  minReplicas: 1
+clusterDomain: cluster.local
+command: []
+common:
+  exampleValue: common-chart
+  global: {}
+commonAnnotations: {}
+commonLabels: {}
+containerPorts:
+  http: 8080
+  https: 8443
+containerSecurityContext:
+  enabled: true
+  runAsUser: 1001
+customLivenessProbe: {}
+customPostInitScripts: {}
+customReadinessProbe: {}
+externalDatabase:
+  database: bitnami_wordpress
+  host: localhost
+  password: ""
+  port: 3306
+  user: bn_wordpress
+extraDeploy: []
+extraEnvVars: []
+extraVolumeMounts: []
+extraVolumes: []
+htaccessPersistenceEnabled: false
+image:
+  debug: false
+  pullPolicy: IfNotPresent
+  registry: docker.io
+  repository: bitnami/wordpress
+  tag: 5.6.0-debian-10-r9
+ingress:
+  annotations: {}
+  certManager: false
+  enabled: false
+  hostname: wordpress.local
+  path: /
+  pathType: ImplementationSpecific
+  secrets: []
+  tls: false
+initContainers: {}
+livenessProbe:
+  enabled: true
+  failureThreshold: 6
+  httpGet:
+    httpHeaders: []
+    path: /wp-admin/install.php
+    port: http
+    scheme: HTTP
+  initialDelaySeconds: 120
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+mariadb:
+  architecture: standalone
+  auth:
+    customPasswordFiles: {}
+    database: bitnami_wordpress
+    forcePassword: false
+    password: ""
+    replicationPassword: ""
+    replicationUser: replicator
+    rootPassword: ""
+    usePasswordFiles: false
+    username: bn_wordpress
+  clusterDomain: cluster.local
+  common:
+    exampleValue: common-chart
+    global: {}
+  commonAnnotations: {}
+  commonLabels: {}
+  enabled: true
+  global: {}
+  image:
+    debug: false
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    registry: docker.io
+    repository: bitnami/mariadb
+    tag: 10.5.8-debian-10-r21
+  initdbScripts: {}
+  metrics:
+    annotations:
+      prometheus.io/port: "9104"
+      prometheus.io/scrape: "true"
+    enabled: false
+    extraArgs:
+      primary: []
+      secondary: []
+    image:
+      pullPolicy: IfNotPresent
+      registry: docker.io
+      repository: bitnami/mysqld-exporter
+      tag: 0.12.1-debian-10-r289
+    livenessProbe:
+      enabled: true
+      failureThreshold: 3
+      initialDelaySeconds: 120
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    readinessProbe:
+      enabled: true
+      failureThreshold: 3
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    resources:
+      limits: {}
+      requests: {}
+    serviceMonitor:
+      additionalLabels: {}
+      enabled: false
+      honorLabels: false
+      interval: 30s
+  primary:
+    affinity: {}
+    args: []
+    command: []
+    configuration: |-
+      [mysqld]
+      skip-name-resolve
+      explicit_defaults_for_timestamp
+      basedir=/opt/bitnami/mariadb
+      plugin_dir=/opt/bitnami/mariadb/plugin
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      tmpdir=/opt/bitnami/mariadb/tmp
+      max_allowed_packet=16M
+      bind-address=0.0.0.0
+      pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+      log-error=/opt/bitnami/mariadb/logs/mysqld.log
+      character-set-server=UTF8
+      collation-server=utf8_general_ci
+
+      [client]
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      default-character-set=UTF8
+      plugin_dir=/opt/bitnami/mariadb/plugin
+
+      [manager]
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+    containerSecurityContext:
+      enabled: true
+      runAsUser: 1001
+    customLivenessProbe: {}
+    customReadinessProbe: {}
+    extraEnvVars: []
+    extraEnvVarsCM: ""
+    extraEnvVarsSecret: ""
+    extraFlags: ""
+    extraVolumeMounts: []
+    extraVolumes: []
+    initContainers: []
+    livenessProbe:
+      enabled: true
+      failureThreshold: 3
+      initialDelaySeconds: 120
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    nodeAffinityPreset:
+      key: ""
+      type: ""
+      values: []
+    nodeSelector: {}
+    pdb:
+      create: false
+      minAvailable: 1
+    persistence:
+      accessModes:
+      - ReadWriteOnce
+      annotations: {}
+      enabled: true
+      selector: {}
+      size: 8Gi
+    podAffinityPreset: ""
+    podAnnotations: {}
+    podAntiAffinityPreset: soft
+    podSecurityContext:
+      enabled: true
+      fsGroup: 1001
+    priorityClassName: ""
+    readinessProbe:
+      enabled: true
+      failureThreshold: 3
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    resources:
+      limits: {}
+      requests: {}
+    service:
+      annotations: {}
+      clusterIP: ""
+      loadBalancerIP: ""
+      loadBalancerSourceRanges: []
+      nodePort: ""
+      port: 3306
+      type: ClusterIP
+    sidecars: []
+    tolerations: []
+    updateStrategy: RollingUpdate
+  rbac:
+    create: false
+  secondary:
+    affinity: {}
+    args: []
+    command: []
+    configuration: |-
+      [mysqld]
+      skip-name-resolve
+      explicit_defaults_for_timestamp
+      basedir=/opt/bitnami/mariadb
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      tmpdir=/opt/bitnami/mariadb/tmp
+      max_allowed_packet=16M
+      bind-address=0.0.0.0
+      pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+      log-error=/opt/bitnami/mariadb/logs/mysqld.log
+      character-set-server=UTF8
+      collation-server=utf8_general_ci
+
+      [client]
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      default-character-set=UTF8
+
+      [manager]
+      port=3306
+      socket=/opt/bitnami/mariadb/tmp/mysql.sock
+      pid-file=/opt/bitnami/mariadb/tmp/mysqld.pid
+    containerSecurityContext:
+      enabled: true
+      runAsUser: 1001
+    customLivenessProbe: {}
+    customReadinessProbe: {}
+    extraEnvVars: []
+    extraEnvVarsCM: ""
+    extraEnvVarsSecret: ""
+    extraFlags: ""
+    extraVolumeMounts: []
+    extraVolumes: []
+    initContainers: []
+    livenessProbe:
+      enabled: true
+      failureThreshold: 3
+      initialDelaySeconds: 120
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    nodeAffinityPreset:
+      key: ""
+      type: ""
+      values: []
+    nodeSelector: {}
+    pdb:
+      create: false
+      minAvailable: 1
+    persistence:
+      accessModes:
+      - ReadWriteOnce
+      annotations: {}
+      enabled: true
+      selector: {}
+      size: 8Gi
+    podAffinityPreset: ""
+    podAnnotations: {}
+    podAntiAffinityPreset: soft
+    podSecurityContext:
+      enabled: true
+      fsGroup: 1001
+    priorityClassName: ""
+    readinessProbe:
+      enabled: true
+      failureThreshold: 3
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 1
+    replicaCount: 1
+    resources:
+      limits: {}
+      requests: {}
+    service:
+      annotations: {}
+      clusterIP: ""
+      loadBalancerIP: ""
+      loadBalancerSourceRanges: []
+      nodePort: ""
+      port: 3306
+      type: ClusterIP
+    sidecars: []
+    tolerations: []
+    updateStrategy: RollingUpdate
+  serviceAccount:
+    annotations: {}
+    create: true
+  volumePermissions:
+    enabled: false
+    image:
+      pullPolicy: Always
+      registry: docker.io
+      repository: bitnami/minideb
+      tag: buster
+    resources: {}
+metrics:
+  enabled: false
+  image:
+    pullPolicy: IfNotPresent
+    registry: docker.io
+    repository: bitnami/apache-exporter
+    tag: 0.8.0-debian-10-r246
+  resources:
+    limits: {}
+    requests: {}
+  service:
+    annotations:
+      prometheus.io/port: '{{ .Values.metrics.service.port }}'
+      prometheus.io/scrape: "true"
+    port: 9117
+  serviceMonitor:
+    additionalLabels: {}
+    enabled: false
+    honorLabels: false
+    interval: 30s
+nodeAffinityPreset:
+  key: ""
+  type: ""
+  values: []
+nodeSelector: {}
+pdb:
+  create: false
+  minAvailable: 1
+persistence:
+  accessMode: ReadWriteOnce
+  dataSource: {}
+  enabled: true
+  size: 10Gi
+podAffinityPreset: ""
+podAnnotations: {}
+podAntiAffinityPreset: soft
+podLabels: {}
+podSecurityContext:
+  enabled: true
+  fsGroup: 1001
+readinessProbe:
+  enabled: true
+  failureThreshold: 6
+  httpGet:
+    httpHeaders: []
+    path: /wp-login.php
+    port: http
+    scheme: HTTP
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+replicaCount: 1
+resources:
+  limits: {}
+  requests:
+    cpu: 300m
+    memory: 512Mi
+service:
+  annotations: {}
+  externalTrafficPolicy: Cluster
+  httpsPort: 443
+  httpsTargetPort: https
+  loadBalancerSourceRanges: []
+  nodePorts:
+    http: ""
+    https: ""
+  port: 80
+  type: NodePort
+serviceAccountName: default
+sidecars: {}
+tolerations: {}
+updateStrategy:
+  type: RollingUpdate
+wordpressBlogName: User's Blog!
+wordpressEmail: user@example.com
+wordpressExtraConfigContent: ""
+wordpressFirstName: FirstName
+wordpressLastName: LastName
+wordpressScheme: http
+wordpressSkipInstall: false
+wordpressTablePrefix: wp_
+wordpressUsername: user

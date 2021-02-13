@@ -91,3 +91,7 @@ redis:
   # Disable AOF
   configmap: |-
     appendonly no
+  # Cluster
+  cluster:
+    enabled: false
+    slaveCount: 0

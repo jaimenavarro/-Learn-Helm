@@ -1,0 +1,18 @@
+## String to fully override redis.fullname template
+fullnameOverride: redis
+## Use password authentication
+usePassword: false
+# Disable AOF
+configmap: |-
+    appendonly no
+# Cluster
+cluster:
+  enabled: false
+  slaveCount: 0
+
+master:
+  ## Enable persistence using Persistent Volume Claims
+  ## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
+  ##
+  persistence:
+    enabled: false

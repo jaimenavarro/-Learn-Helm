@@ -1,8 +1,10 @@
 name: str()
 home: str(required=False)
 version: str()
+apiVersion: any(str(), num())
 appVersion: any(str(), num())
 description: str()
+type: str()
 keywords: list(str(), required=False)
 sources: list(str(), required=False)
 maintainers: list(include('maintainer'), required=False)
@@ -18,3 +20,10 @@ maintainer:
   name: str()
   email: str(required=False)
   url: str(required=False)
+---
+dependencies:
+  name: str()
+  version: any(str(), num())
+  repository: str()
+
+  

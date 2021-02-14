@@ -8,6 +8,7 @@ type: str()
 keywords: list(str(), required=False)
 sources: list(str(), required=False)
 maintainers: list(include('maintainer'), required=False)
+dependencies: list(include('dependencie'), required=False)
 icon: str(required=False)
 engine: str(required=False)
 condition: str(required=False)
@@ -21,7 +22,7 @@ maintainer:
   email: str(required=False)
   url: str(required=False)
 ---
-dependencies:
+dependencie:
   name: str()
   version: any(str(), num())
   repository: str()

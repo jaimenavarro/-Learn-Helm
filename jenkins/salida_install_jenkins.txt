@@ -1,0 +1,497 @@
+NAME: jenkins
+LAST DEPLOYED: Sun Feb 21 18:33:14 2021
+NAMESPACE: chapter7
+STATUS: pending-install
+REVISION: 1
+TEST SUITE: None
+HOOKS:
+MANIFEST:
+---
+# Source: jenkins/templates/serviceaccounts.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins-agent
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: agent
+---
+# Source: jenkins/templates/serviceaccounts.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: jenkins-master
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+---
+# Source: jenkins/templates/configmap-init.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-init
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+data:
+  init.sh: |
+    #!/usr/bin/env bash
+    
+    set -o errexit
+    set -o nounset
+    set -o pipefail
+    
+    readonly PLUGINS_CHECKSUM_FILE=/var/jenkins_home/plugins.sha256
+    
+    install_plugins() {
+        rm -rf /usr/share/jenkins/ref/plugins/*
+        /usr/local/bin/install-plugins.sh < /var/jenkins_ref/plugins.txt
+    }
+    
+    main() {
+        local jenkins_image_repo="${1?Specify Jenkins image repo}"
+        local jenkins_image_tag="${2?Specify Jenkins image version}"
+        local force_plugin_updates="${3?Specify whether plugins should be updated}"
+    
+        echo '************************************************************************'
+        echo '*                                                                      *'
+        echo '*                 Jenkins Helm Chart by codecentric AG                 *'
+        echo '*                                                                      *'
+        echo '************************************************************************'
+        echo
+        echo "Jenkins Docker image: $jenkins_image_repo:$jenkins_image_tag"
+        echo
+    
+        if [[ -d /var/jenkins_ref/ ]]; then
+            echo 'Copying reference data...'
+            cp -rfL /var/jenkins_ref/* /var/jenkins_home
+    
+            if [[ -f /var/jenkins_ref/plugins.txt ]]; then
+                if [[ -f "$PLUGINS_CHECKSUM_FILE" ]]; then
+                    if ! sha256sum --check < "$PLUGINS_CHECKSUM_FILE" > /dev/null; then
+                        echo "SHA256 of 'plugins.txt' changed. Updating plugins..."
+                        install_plugins
+                    elif [[ "$force_plugin_updates" == true ]]; then
+                        echo 'Updating plugins...'
+                        install_plugins
+                    else
+                        echo 'No plugins updates detected.'
+                    fi
+                else
+                  echo 'Installing plugins...'
+                  install_plugins
+                fi
+    
+                echo "Writing checksum for 'plugins.txt'..."
+                sha256sum /var/jenkins_ref/plugins.txt > "$PLUGINS_CHECKSUM_FILE"
+            else
+                echo "'plugins.txt' does not exist. Skipping plugin installations."
+            fi
+        fi
+    
+        echo 'Disabling upgrade wizard...'
+        echo "$jenkins_image_tag" > /usr/share/jenkins/ref/jenkins.install.UpgradeWizard.state
+        echo "$jenkins_image_tag" > /usr/share/jenkins/ref/jenkins.install.InstallUtil.lastExecVersion
+    }
+    
+    main "$@"
+---
+# Source: jenkins/templates/configmap-reference-content.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jenkins-home
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+data:
+  plugins.txt: |
+    configuration-as-code:1.35
+    configuration-as-code-support:1.18
+    git:4.1.1
+    job-dsl:1.76
+    kubernetes:1.23.2
+    workflow-aggregator:2.6
+    
+  jenkins.yaml: |
+    credentials:
+      system:
+        domainCredentials:
+          - credentials:
+              - usernamePassword:
+                  scope: GLOBAL
+                  id: github-auth
+                  username: jaimenavarro
+                  password: Xaumequi1!
+                  description: Password to authenticate with GitHub
+    jenkins:
+      numExecutors: 0
+      clouds:
+        - kubernetes:
+            name: kubernetes
+            serverUrl: https://kubernetes.default
+            namespace: chapter7
+            jenkinsUrl: http://jenkins-master:8080
+            jenkinsTunnel: jenkins-agent:50000
+            templates:
+              - name: chart-testing-agent
+                label: chart-testing-agent
+                idleMinutes: 0
+                namespace: chapter7
+                nodeUsageMode: NORMAL
+                serviceAccount: jenkins-agent
+                containers:
+                  - name: chart-testing
+                    image: quay.io/helmpack/chart-testing:v3.0.0-beta.1
+                    ttyEnabled: true
+                    resourceLimitCpu: 200m
+                    resourceLimitMemory: 500Mi
+                envVars:
+                  - envVar:
+                      key: GITHUB_PAGES_REPO_URL
+                      value: https://github.com/jaimenavarro/helm-chart-repository.git
+                  - envVar:
+                      key: GITHUB_PAGES_SITE_URL
+                      value: 
+    jobs:
+      - script: |-
+          multibranchPipelineJob('Test and Release Helm Charts') {
+            factory {
+              workflowBranchProjectFactory {
+                scriptPath('helm-charts/Jenkinsfile')
+              }
+            }
+            branchSources {
+              git {
+                id('test')
+                remote("https://github.com/jaimenavarro/helm-jenkins-ci-cd.git")
+                credentialsId('github-auth')
+              }
+            }
+            orphanedItemStrategy {
+              discardOldItems {
+                numToKeep(10)
+              }
+            }
+          }
+---
+# Source: jenkins/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: jenkins
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "2Gi"
+---
+# Source: jenkins/templates/rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: jenkins-agent
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: agent
+rules:
+  - apiGroups:
+    - ""
+    resources:
+    - pods
+    - pods/log
+    - services
+    - configmaps
+    - secrets
+    - serviceaccounts
+    - persistentvolumeclaims
+    - namespaces
+    - events
+    verbs:
+    - get
+    - list
+    - update
+    - watch
+    - create
+    - delete
+  - apiGroups:
+    - apps
+    resources:
+    - statefulsets
+    - deployments
+    - replicasets
+    verbs:
+    - get
+    - list
+    - update
+    - watch
+    - create
+    - delete
+---
+# Source: jenkins/templates/rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: jenkins-master
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+rules:
+  - apiGroups:
+    - ""
+    resources:
+    - pods
+    verbs:
+    - create
+    - delete
+    - get
+    - list
+    - watch
+  - apiGroups:
+    - ""
+    resources:
+    - pods/exec
+    verbs:
+    - get
+---
+# Source: jenkins/templates/rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: jenkins-agent
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: agent
+subjects:
+  - kind: ServiceAccount
+    name: jenkins-agent
+    namespace: chapter7
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: jenkins-agent
+---
+# Source: jenkins/templates/rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: jenkins-master
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+subjects:
+  - kind: ServiceAccount
+    name: jenkins-master
+    namespace: chapter7
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: jenkins-master
+---
+# Source: jenkins/templates/service-agent.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-agent
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  ports:
+    - port: 50000
+      targetPort: agent
+      protocol: TCP
+      name: agent
+  selector:
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/component: master
+---
+# Source: jenkins/templates/service-master.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-master
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: jenkins
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/component: master
+---
+# Source: jenkins/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  labels:
+    app.kubernetes.io/name: jenkins
+    helm.sh/chart: jenkins-1.5.1
+    app.kubernetes.io/instance: jenkins
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jenkins
+      app.kubernetes.io/instance: jenkins
+      app.kubernetes.io/component: master
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jenkins
+        helm.sh/chart: jenkins-1.5.1
+        app.kubernetes.io/instance: jenkins
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: master
+      annotations:
+        checksum/init: e43addd28e27d8ab36052943e5586515d252a27c3ddd85e15c43e99501ab1c0b
+        checksum/ref: 1cabccc87ce652bf9495833bcc777eba4deff16485f850f848adbd9f5f88817e
+    spec:
+      initContainers:
+        - name: jenkins-init
+          image: jenkins/jenkins:2.190.1-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /init/init.sh
+          args:
+            - "jenkins/jenkins"
+            - "2.190.1-alpine"
+            - "false"
+          volumeMounts:
+            - name: init
+              mountPath: /init
+            - name: jenkins-home
+              mountPath: /var/jenkins_home
+            - name: jenkins-plugins
+              mountPath: /usr/share/jenkins/ref/plugins
+            - name: home
+              mountPath: /var/jenkins_ref/
+          resources:
+            limits:
+              cpu: 500m
+              memory: 2Gi
+      containers:
+        - name: jenkins-master
+          image: jenkins/jenkins:2.190.1-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: agent
+              containerPort: 50000
+              protocol: TCP
+          env:
+            - name: JENKINS_SLAVE_AGENT_PORT
+              value: "50000"
+            - name: JAVA_OPTS
+              value: "-Dhudson.slaves.NodeProvisioner.initialDelay=0 -Dhudson.model.LoadStatistics.decay=0.7 -Dhudson.slaves.NodeProvisioner.MARGIN=30 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.6 -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -XX:MaxRAMFraction=2 -XshowSettings:vm -Djenkins.install.runSetupWizard=false"
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: http
+            initialDelaySeconds: 90
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: http
+            initialDelaySeconds: 15
+          volumeMounts:
+            - name: jenkins-home
+              mountPath: /var/jenkins_home
+            - name: jenkins-plugins
+              mountPath: /usr/share/jenkins/ref/plugins
+          resources:
+            limits:
+              cpu: 500m
+              memory: 2Gi
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      serviceAccountName: jenkins-master
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: jenkins-home
+          persistentVolumeClaim:
+            claimName: jenkins
+        - name: jenkins-plugins
+          emptyDir: {}
+        - name: init
+          configMap:
+            name: jenkins-init
+            defaultMode: 0555
+        - name: home
+          configMap:
+            name: jenkins-home
+
+NOTES:
+************************************************************************
+*                                                                      *
+*                 Jenkins Helm Chart by codecentric AG                 *
+*                                                                      *
+************************************************************************
+
+In case the chart was installed with the default configuration and you did not
+configure an admin user, Jenkins creates one per default. The initial password
+is logged and also stored in '/var/jenkins_home/secrets/initialAdminPassword'.
+
+Use the following command to retrieve it:
+
+export POD_NAME=$(kubectl get pods --namespace chapter7 -l "app.kubernetes.io/name=jenkins,app.kubernetes.io/instance=jenkins" -o jsonpath="{.items[0].metadata.name}")
+kubectl exec --namespace chapter7 "$POD_NAME" cat /var/jenkins_home/secrets/initialAdminPassword
+
+
+Accessing your Jenkins server:
+
+export NODE_PORT=$(kubectl get service --namespace chapter7 -o jsonpath="{.spec.ports[0].nodePort}" jenkins-master)
+export NODE_IP=$(kubectl get nodes --namespace chapter7 -o jsonpath="{.items[0].status.addresses[0].address}")
+echo "http://$NODE_IP:$NODE_PORT"
